@@ -81,20 +81,21 @@ class PrestaShopWebservice
 	 * Take the status code and throw an exception if the server didn't return 200 or 201 code
 	 * @param int $status_code Status code of an HTTP return
 	 */
-	protected function checkStatusCode($status_code)
+	protected function ensureRequestSucceed($url, $method, $request, $params = null)
 	{
-		$error_label = 'This call to PrestaShop Web Services failed and returned an HTTP status of %d. That means: %s.';
-		switch($status_code)
-		{
-			case 200:	case 201:	break;
-			case 204: throw new PrestaShopWebserviceException(sprintf($error_label, $status_code, 'No content'));break;
-			case 400: throw new PrestaShopWebserviceException(sprintf($error_label, $status_code, 'Bad Request'));break;
-			case 401: throw new PrestaShopWebserviceException(sprintf($error_label, $status_code, 'Unauthorized'));break;
-			case 404: throw new PrestaShopWebserviceException(sprintf($error_label, $status_code, 'Not Found'));break;
-			case 405: throw new PrestaShopWebserviceException(sprintf($error_label, $status_code, 'Method Not Allowed'));break;
-			case 500: throw new PrestaShopWebserviceException(sprintf($error_label, $status_code, 'Internal Server Error'));break;
-			default: throw new PrestaShopWebserviceException('This call to PrestaShop Web Services returned an unexpected HTTP status of:' . $status_code);
+
+		if (in_array($request['status_code'], array(200, 201))) {
+			return;
 		}
+		throw new PrestaShopWebserviceException(sprintf(
+			"The following call to PrestaShop api failed with HTTP code %d:\n Method: %s\n Url: %s\n Params: %s\n Response: %s\n",
+				$request['status_code'],
+				$method,
+				$url,
+				var_export($params, 1),
+				$request['response']
+			)
+		);
 	}
 	/**
 	 * Handles a CURL request to PrestaShop Webservice. Can throw exception.
@@ -235,9 +236,10 @@ class PrestaShopWebservice
 		}
 		else
 			throw new PrestaShopWebserviceException('Bad parameters given');
+
 		$request = self::executeRequest($url, array(CURLOPT_CUSTOMREQUEST => 'POST', CURLOPT_POSTFIELDS => $xml));
 
-		self::checkStatusCode($request['status_code']);
+		self::ensureRequestSucceed($url, 'POST', $request, $xml);
 		return self::parseXML($request['response']);
 	}
 
@@ -293,7 +295,7 @@ class PrestaShopWebservice
 		
 		$request = self::executeRequest($url, array(CURLOPT_CUSTOMREQUEST => 'GET'));
 		
-		self::checkStatusCode($request['status_code']);// check the response validity
+		self::ensureRequestSucceed($url, 'GET', $request);// check the response validity
 		return self::parseXML($request['response']);
 	}
 
@@ -325,7 +327,7 @@ class PrestaShopWebservice
 		else
 			throw new PrestaShopWebserviceException('Bad parameters given');
 		$request = self::executeRequest($url, array(CURLOPT_CUSTOMREQUEST => 'HEAD', CURLOPT_NOBODY => true));
-		self::checkStatusCode($request['status_code']);// check the response validity
+		self::ensureRequestSucceed($url, 'HEAD', $request);// check the response validity
 		return $request['header'];
 	}
 	/**
@@ -355,7 +357,7 @@ class PrestaShopWebservice
 			throw new PrestaShopWebserviceException('Bad parameters given');
 		
 		$request = self::executeRequest($url,  array(CURLOPT_CUSTOMREQUEST => 'PUT', CURLOPT_POSTFIELDS => $xml));
-		self::checkStatusCode($request['status_code']);// check the response validity
+		self::ensureRequestSucceed($url, 'PUT', $request, $xml);// check the response validity
 		return self::parseXML($request['response']);
 	}
 
@@ -396,7 +398,7 @@ class PrestaShopWebservice
 		if (isset($options['id_group_shop']))
 			$url .= '&id_group_shop='.$options['id_group_shop'];
 		$request = self::executeRequest($url, array(CURLOPT_CUSTOMREQUEST => 'DELETE'));
-		self::checkStatusCode($request['status_code']);// check the response validity
+		self::ensureRequestSucceed($url, 'DELETE', $request);// check the response validity
 		return true;
 	}
 	
@@ -406,5 +408,5 @@ class PrestaShopWebservice
 /**
  * @package PrestaShopWebservice
  */
-class PrestaShopWebserviceException extends Exception { }
+class PrestaShopWebserviceException extends RuntimeException { }
 
