@@ -94,7 +94,7 @@ class PrestaShopWebservice
 				$url,
 				var_export($params, 1),
 				$request['response']
-			)
+			), $request['status_code']
 		);
 	}
 	/**
